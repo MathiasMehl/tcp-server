@@ -5,7 +5,6 @@ import time
 
 HOST = '127.0.0.1'
 PORT = 8002
-CLIENTS = 0
 TIMEOUT = 30
 PRINT_LOCK = threading.Lock()
 CLIENTS_LOCK = threading.Lock()
