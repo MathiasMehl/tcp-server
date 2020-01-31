@@ -5,7 +5,6 @@ import threading
 PRINT_LOCK = threading.Lock()
 
 PORT = 8002
-NUMBER_OF_CLIENTS = 2
 
 
 def print_with_lock(arg: str):
@@ -41,9 +40,10 @@ if 1 < sys.argv.__len__():
     request = sys.argv[1]
     host = sys.argv[2]
     url = sys.argv[3]
+    number_of_clients = sys.argv[4]
 
     if request == "GET":
-        for i in range(NUMBER_OF_CLIENTS):
+        for i in range(int(number_of_clients)):
             threading.Thread(target=send_basic_get_request, name=f"Client{i}", args=(host, url)).start()
         # send_basic_get_request(host, url)
     else:

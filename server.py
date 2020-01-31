@@ -5,17 +5,19 @@ import time
 
 HOST = '127.0.0.1'
 PORT = 8002
+CLIENTS = 0
 PRINT_LOCK = threading.Lock()
+CLIENTS_LOCK = threading.Lock()
 
 
-def print_with_lock(arg):
+def print_with_lock(arg: str):
     with PRINT_LOCK:
-        print(arg)
+        print(f"[{threading.current_thread().getName()}]" + arg)
 
 
-def print_response_status(addr, method, url, status_code):
-    print_with_lock(f"{addr} issued a '{method}' request to URL '{url}' "
-                    f"response was: '{status_code} {http.HTTPStatus(status_code).phrase}'")
+def print_response_status(method, url, status_code):
+    print_with_lock(f" issued a '{method}' request to URL '{url}' "
+                    f"request handled with status code: '{status_code} {http.HTTPStatus(status_code).phrase}'")
 
 
 def http_response(status_code, body):
@@ -24,7 +26,7 @@ def http_response(status_code, body):
 
 
 def handle_conn(conn, addr):
-    print(f"Connection with {addr}\n")
+    print_with_lock(f" Established connection with SERVER\n")
 
     timeout = 30
     conn_time = time.time()
@@ -38,7 +40,7 @@ def handle_conn(conn, addr):
         method = request.split()[0]
         url = request.split()[1]
         if not request.split()[2] == "HTTP/1.1":
-            print_with_lock(f"[SERVER] Got a non HTTP/1.1 request from {addr}. closing socket")
+            print_with_lock(f" Sent a non HTTP/1.1 request. closing socket")
             conn.sendall("Only HTTP/1.1 supported, try again")
             conn.close()
             return
@@ -47,7 +49,7 @@ def handle_conn(conn, addr):
         # headers CRLF
         # message-body
 
-        print(f"{addr} issued a '{method}' request to URL '{url}'")
+        print_with_lock(f" Issued a '{method}' request to URL '{url}'")
         if method == "GET":
             if url == "/":
                 # Garbage collector will handle this
@@ -55,41 +57,49 @@ def handle_conn(conn, addr):
 
                 response = http_response(200, static_web_page)
                 conn.sendall(response)
-                print_response_status(addr, method, url, 200)
+                print_response_status(method, url, 200)
             else:
                 conn.sendall(http_response(404, ""))
-                print_response_status(addr, method, url, 404)
+                print_response_status(method, url, 404)
         elif method == "PUT":
             conn.sendall(http_response(501, ""))
-            print_response_status(addr, method, url, 501)
+            print_response_status(method, url, 501)
         elif method == "POST":
             conn.sendall(http_response(501, ""))
-            print_response_status(addr, method, url, 501)
+            print_response_status(method, url, 501)
         elif method == "DELETE":
             conn.sendall(http_response(501, ""))
-            print_response_status(addr, method, url, 501)
+            print_response_status(method, url, 501)
 
-    print(f"Timeout reached for {addr}, closing connection")
+    print_with_lock(f" Timeout reached, closing connection")
     conn.close()
 
 
 def start():
+    threading.current_thread().name = 'SERVER'
+
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind((HOST, PORT))
     s.listen()
 
-    print("Server started!")
+    print_with_lock(" Server started!")
+
+    clients = 0
     while True:
 
         active_connections = 0
         for th in threading.enumerate():
-            if th.name == "active_conn":
+            if th.name.startswith("CLIENT"):
                 active_connections += 1
 
-        print_with_lock(f"Active connections: {active_connections}")
+        print_with_lock(f" Active connections: {active_connections}")
 
         conn, addr = s.accept()
-        threading.Thread(target=handle_conn, name="active_conn", args=(conn, addr)).start()
+
+        with CLIENTS_LOCK:
+            clients += 1
+            threading.Thread(target=handle_conn, name=f"CLIENT{clients}[{addr[0]}:{addr[1]}]",
+                             args=(conn, addr)).start()
 
 
 start()
