@@ -2,7 +2,9 @@ import socket
 import threading
 import http
 import time
+from apscheduler.schedulers.background import BackgroundScheduler
 
+scheduler = BackgroundScheduler()
 HOST = '127.0.0.1'
 PORT = 8002
 TIMEOUT = 30
@@ -13,6 +15,15 @@ CLIENTS_LOCK = threading.Lock()
 def print_with_lock(arg: str):
     with PRINT_LOCK:
         print(f"[{threading.current_thread().getName()}]" + arg)
+
+
+def print_num_active_connections():
+    active_threads = 0
+    for thread in threading.enumerate():
+        if thread.getName().startswith("CLIENT"):
+            active_threads += 1
+    with PRINT_LOCK:
+        print(f"[SERVER] Active connections: {active_threads}")
 
 
 def print_response_status(method, url, status_code):
@@ -55,8 +66,25 @@ def handle_conn(conn, addr):
                 # Garbage collector will handle this
                 static_web_page = open('hello.html', 'r').read()
 
-                response = http_response(200, static_web_page)
-                conn.sendall(response)
+                conn.sendall(http_response(200, static_web_page))
+                print_response_status(method, url, 200)
+            else:
+                conn.sendall(http_response(404, ""))
+                print_response_status(method, url, 404)
+        elif method == "TRACE":
+            conn.sendall(http_response(200, request))
+            print_response_status(method, url, 200)
+        elif method == "OPTIONS":
+            conn.sendall(http_response(200, "(GET (only at '/'), TRACE, HEAD (only at '/')"))
+            print_response_status(method, url, 200)
+        elif method == "HEAD":
+            if url == "/":
+                # Garbage collector will handle this
+                static_web_page = open('hello.html', 'r').read()
+
+                conn.sendall(http_response(200,
+                                           f"HTML document with size: {len(static_web_page)}, "
+                                           f"last modified: Some time ago"))
                 print_response_status(method, url, 200)
             else:
                 conn.sendall(http_response(404, ""))
@@ -86,13 +114,13 @@ def start():
     s.listen()
 
     print_with_lock(" Server started!")
+    scheduler.add_job(print_num_active_connections, 'interval', seconds=15)
+    scheduler.start()
 
     clients = 0
     while True:
-        print_with_lock(f" Active connections: {threading.active_count() - 1}")
-
+        print_num_active_connections()
         conn, addr = s.accept()
-
         with CLIENTS_LOCK:
             clients += 1
             threading.Thread(target=handle_conn, name=f"CLIENT{clients}[{addr[0]}:{addr[1]}]",
