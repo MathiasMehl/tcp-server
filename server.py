@@ -89,13 +89,7 @@ def start():
 
     clients = 0
     while True:
-
-        active_connections = 0
-        for th in threading.enumerate():
-            if th.name.startswith("CLIENT"):
-                active_connections += 1
-
-        print_with_lock(f" Active connections: {active_connections}")
+        print_with_lock(f" Active connections: {threading.active_count() - 1}")
 
         conn, addr = s.accept()
 
