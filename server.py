@@ -6,6 +6,7 @@ import time
 HOST = '127.0.0.1'
 PORT = 8002
 CLIENTS = 0
+TIMEOUT = 30
 PRINT_LOCK = threading.Lock()
 CLIENTS_LOCK = threading.Lock()
 
@@ -28,14 +29,14 @@ def http_response(status_code, body):
 def handle_conn(conn, addr):
     print_with_lock(f" Established connection with SERVER\n")
 
-    timeout = 30
-    conn_time = time.time()
+    last_request = time.time()
 
-    while time.time() < conn_time + timeout:
+    while time.time() < last_request + TIMEOUT:
         request = conn.recv(1024).decode("UTF-8")
         if not request:
             time.sleep(0.1)
             continue
+        last_request = time.time()
 
         method = request.split()[0]
         url = request.split()[1]
@@ -70,6 +71,9 @@ def handle_conn(conn, addr):
         elif method == "DELETE":
             conn.sendall(http_response(501, ""))
             print_response_status(method, url, 501)
+        else:
+            conn.sendall(http_response(400, ""))
+            print_response_status(method, url, 400)
 
     print_with_lock(f" Timeout reached, closing connection")
     conn.close()
