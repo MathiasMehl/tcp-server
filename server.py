@@ -4,11 +4,11 @@ import http
 import time
 from apscheduler.schedulers.background import BackgroundScheduler
 
-scheduler = BackgroundScheduler()
 HOST = '127.0.0.1'
 PORT = 8002
 TIMEOUT = 30
 PRINT_LOCK = threading.Lock()
+scheduler = BackgroundScheduler()
 
 
 def print_with_lock(arg):
@@ -31,31 +31,27 @@ def print_response_status(method, url, status_code):
                     f"request handled with status code: '{status_code} {http.HTTPStatus(status_code).phrase}'")
 
 
-def send_and_print_response(conn, method, url, status_code, body):
-    conn.sendall(create_http_response(status_code, body))
-    print_response_status(method, url, status_code)
-
-
 def create_http_response(status_code, body):
     reason_phrase = http.HTTPStatus(status_code).phrase
     return f"HTTP/1.1 {status_code} {reason_phrase}\r\n\r\n{body}".encode("UTF-8")
 
 
+def send_and_print_response(conn, method, url, status_code, message_body):
+    conn.sendall(create_http_response(status_code, message_body))
+    print_response_status(method, url, status_code)
+
+
 def handle_conn(conn, addr):
     print_with_lock(f" Established connection with SERVER\n")
 
-    last_request = time.time()
+    last_request_timestamp = time.time()
 
-    while time.time() < last_request + TIMEOUT:
+    while time.time() < last_request_timestamp + TIMEOUT:
         request = conn.recv(1024).decode("UTF-8")
         if not request:
             time.sleep(0.1)
             continue
-        last_request = time.time()
-
-        # HTTP-Version Status-Code Reason-Phrase CRLF
-        # headers CRLF
-        # message-body
+        last_request_timestamp = time.time()
 
         method = request.split()[0]
         url = request.split()[1]
@@ -70,30 +66,26 @@ def handle_conn(conn, addr):
             if url == "/":
                 static_web_page = open('hello.html', 'r').read()
 
-                send_and_print_response(conn, method, url, 200, static_web_page)
+                send_and_print_response(conn, method, url, status_code=200, message_body=static_web_page)
             else:
-                send_and_print_response(conn, method, url, 404, "")
+                send_and_print_response(conn, method, url, status_code=404, message_body="")
         elif method == "TRACE":
-            send_and_print_response(conn, method, url, 200, request)
+            send_and_print_response(conn, method, url, status_code=200, message_body=request)
         elif method == "OPTIONS":
-            send_and_print_response(conn, method, url, 200,
-                                    "(GET (only at '/'), TRACE, HEAD (only at '/')")
+            send_and_print_response(conn, method, url, status_code=200, message_body=
+            "(GET/HEAD (only at '/'), TRACE")
         elif method == "HEAD":
             if url == "/":
                 static_web_page = open('hello.html', 'r').read()
 
-                send_and_print_response(conn, method, url, 200,
-                                        f"'HTML document' with size: {len(static_web_page)} \n last modified: Some time ago")
+                send_and_print_response(conn, method, url, status_code=200, message_body=
+                f"'HTML document' with size: {len(static_web_page)} \n last modified: Some time ago")
             else:
-                send_and_print_response(conn, method, url, 404, "")
-        elif method == "PUT":
-            send_and_print_response(conn, method, url, 501, "")
-        elif method == "POST":
-            send_and_print_response(conn, method, url, 501, "")
-        elif method == "DELETE":
-            send_and_print_response(conn, method, url, 501, "")
+                send_and_print_response(conn, method, url, status_code=404, message_body="")
+        elif method == "PUT" or method == "POST" or method == "DELETE":
+            send_and_print_response(conn, method, url, status_code=501, message_body="")
         else:
-            send_and_print_response(conn, method, url, 400, "")
+            send_and_print_response(conn, method, url, status_code=400, message_body="")
 
     print_with_lock(f" Timeout reached, closing connection")
     conn.close()
@@ -108,12 +100,12 @@ def start():
     scheduler.add_job(print_num_active_connections, 'interval', seconds=10)
     scheduler.start()
 
-    client_ID = 0
+    client_id = 0
     while True:
         print_num_active_connections()
         conn, addr = s.accept()
-        client_ID += 1
-        threading.Thread(target=handle_conn, name=f"CLIENT{client_ID}[{addr[0]}:{addr[1]}]",
+        client_id += 1
+        threading.Thread(target=handle_conn, name=f"CLIENT{client_id}[{addr[0]}:{addr[1]}]",
                          args=(conn, addr)).start()
 
 

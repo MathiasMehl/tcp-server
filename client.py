@@ -3,7 +3,6 @@ import sys
 import threading
 
 PRINT_LOCK = threading.Lock()
-
 PORT = 8002
 
 
@@ -16,9 +15,6 @@ def send_basic_get_request(host, url, method):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((host, PORT))
 
-    # Method Request-URI HTTP-Version CRLF
-    # headers CRLF
-    # message-body
     request = f"{method} {url} HTTP/1.1\r\n\r\n"
 
     print_with_lock(f" Attempting '{method}' request to host '{host} on url '{url}'")
