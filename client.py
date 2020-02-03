@@ -7,7 +7,7 @@ PRINT_LOCK = threading.Lock()
 PORT = 8002
 
 
-def print_with_lock(arg: str):
+def print_with_lock(arg):
     with PRINT_LOCK:
         print(f"[{threading.current_thread().getName()}]" + arg)
 
@@ -26,11 +26,11 @@ def send_basic_get_request(host, url, method):
 
     data = s.recv(1024).decode("UTF-8")
 
-    http_code = data.split("\n")[0]
+    http_meta = data.split("\n")[0]
 
     response_body = "\n".join(data.split("\n")[1:]).strip()
 
-    print_with_lock(f" Response from '{method}' request to '{host}' on '{url}' had status code: {http_code}")
+    print_with_lock(f" Response from '{method}' request to '{host}' on '{url}' had metadata: {http_meta}")
     print_with_lock(f" Body received from '{method}' request: \n {response_body} ")
 
     s.close()
@@ -40,7 +40,7 @@ if 1 < sys.argv.__len__():
     method = sys.argv[1]
     host = sys.argv[2]
     url = sys.argv[3]
-    number_of_clients = sys.argv[4]
+    number_of_clients = int(sys.argv[4])
 
-    for i in range(int(number_of_clients)):
+    for i in range(number_of_clients):
         threading.Thread(target=send_basic_get_request, name=f"Client{i}", args=(host, url, method)).start()
