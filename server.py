@@ -8,7 +8,7 @@ HOST = '127.0.0.1'
 PORT = 8002
 TIMEOUT = 30
 PRINT_LOCK = threading.Lock()
-scheduler = BackgroundScheduler()
+SCHEDULER = BackgroundScheduler()
 
 
 def print_with_lock(arg):
@@ -42,7 +42,7 @@ def send_and_print_response(conn, method, url, status_code, message_body):
 
 
 def handle_conn(conn, addr):
-    print_with_lock(f" Established connection with SERVER\n")
+    print_with_lock(f" Established connection with SERVER")
 
     last_request_timestamp = time.time()
 
@@ -97,8 +97,8 @@ def start():
     s.listen()
 
     print_with_lock(" Server started!")
-    scheduler.add_job(print_num_active_connections, 'interval', seconds=10)
-    scheduler.start()
+    SCHEDULER.add_job(print_num_active_connections, 'interval', seconds=10)
+    SCHEDULER.start()
 
     client_id = 0
     while True:
