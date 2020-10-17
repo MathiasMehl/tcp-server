@@ -11,13 +11,15 @@ def print_with_lock(arg):
     with PRINT_LOCK:
         print(f"[{threading.current_thread().getName()}]" + arg)
 
+
 def connect_server(host):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((host, PORT))
 
     return s
 
-def send_basic_get_request(host, url, method):
+
+def send_HTTP_request(host, url, method):
     server = connect_server(host)
 
     request = f"{method} {url} HTTP/1.1\r\n\r\n"
@@ -43,5 +45,8 @@ if 1 < sys.argv.__len__():
     url = sys.argv[3]
     number_of_clients = int(sys.argv[4])
 
-    for i in range(number_of_clients):
-        threading.Thread(target=send_basic_get_request, name=f"Client{i}", args=(host, url, method)).start()
+    HTTP_requests = ["GET", "TRACE", "OPTIONS", "HEAD", "PUT", "POST", "DELETE"]
+
+    if method in HTTP_requests:
+        for i in range(number_of_clients):
+            threading.Thread(target=send_HTTP_request, name=f"Client{i}", args=(host, url, method)).start()
