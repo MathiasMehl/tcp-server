@@ -3,6 +3,7 @@ import sys
 import threading
 
 PRINT_LOCK = threading.Lock()
+HOST = "127.0.0.1"
 PORT = 8002
 
 
@@ -10,17 +11,21 @@ def print_with_lock(arg):
     with PRINT_LOCK:
         print(f"[{threading.current_thread().getName()}]" + arg)
 
-
-def send_basic_get_request(host, url, method):
+def connect_server(host):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.connect((host, PORT))
+
+    return s
+
+def send_basic_get_request(host, url, method):
+    server = connect_server(host)
 
     request = f"{method} {url} HTTP/1.1\r\n\r\n"
 
     print_with_lock(f" Attempting '{method}' request to host '{host} on url '{url}'")
-    s.sendall(request.encode("UTF-8"))
+    server.sendall(request.encode("UTF-8"))
 
-    data = s.recv(1024).decode("UTF-8")
+    data = server.recv(1024).decode("UTF-8")
 
     http_meta = data.split("\n")[0]
 
@@ -29,7 +34,7 @@ def send_basic_get_request(host, url, method):
     print_with_lock(f" Response from '{method}' request to '{host}' on '{url}' had metadata: {http_meta}")
     print_with_lock(f" Body received from '{method}' request: \n {response_body} ")
 
-    s.close()
+    server.close()
 
 
 if 1 < sys.argv.__len__():
