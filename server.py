@@ -41,8 +41,8 @@ def send_and_print_http_response(conn, method, url, status_code, message_body):
     print_response_status(method, url, status_code)
 
 
-def handle_conn(conn):
-    print_with_lock(f" Established connection with SERVER")
+def handle_conn(conn, addr):
+    print_with_lock(" Established connection with SERVER")
 
     last_request_timestamp = time.time()
 
@@ -54,14 +54,19 @@ def handle_conn(conn):
         last_request_timestamp = time.time()
 
         method = request.split()[0]
+        if method == "ping":
+            print_with_lock(" pinged server")
+            conn.send("pong".encode())
+            conn.close()
+            return
         url = request.split()[1]
         if not request.split()[2] == "HTTP/1.1":
-            print_with_lock(f" Sent a non HTTP/1.1 request. closing socket")
+            print_with_lock(" Sent a non HTTP/1.1 request. closing socket")
             conn.sendall("Only HTTP/1.1 supported, try again")
             conn.close()
             return
 
-        print_with_lock(f" Issued a '{method}' request to URL '{url}'")
+        print_with_lock(" Issued a '{method}' request to URL '{url}'")
         if method == "GET":
             if url == "/":
                 static_web_page = open('hello.html', 'r').read()
@@ -87,7 +92,7 @@ def handle_conn(conn):
         else:
             send_and_print_http_response(conn, method, url, status_code=400, message_body="")
 
-    print_with_lock(f" Timeout reached, closing connection")
+    print_with_lock(" Timeout reached, closing connection")
     conn.close()
 
 
