@@ -65,9 +65,12 @@ def http_request(server, url, method):
 
 
 if 1 < sys.argv.__len__():
-    method = sys.argv[1]
-    url = sys.argv[2]
-    number_of_clients = int(sys.argv[3])
+    number_of_clients = int(sys.argv[1])
+    method = sys.argv[2]
+    try:
+        url = sys.argv[3]
+    except IndexError:
+        url = ""
 
     for i in range(number_of_clients):
         threading.Thread(target=client, name=f"Client{i}", args=(method, url)).start()
