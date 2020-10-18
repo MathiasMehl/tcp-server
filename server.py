@@ -41,6 +41,40 @@ def send_and_print_http_response(conn, method, url, status_code, message_body):
     print_response_status(method, url, status_code)
 
 
+def handle_ping(conn):
+    print_with_lock(" pinged server")
+    conn.send("pong".encode())
+    conn.close()
+
+
+def handle_http_request(conn, method, url, request):
+    print_with_lock(f" Issued a '{method}' request to URL '{url}'")
+    if method == "GET":
+        if url == "/":
+            static_web_page = open('hello.html', 'r').read()
+
+            send_and_print_http_response(conn, method, url, status_code=200, message_body=static_web_page)
+        else:
+            send_and_print_http_response(conn, method, url, status_code=404, message_body="")
+    elif method == "TRACE":
+        send_and_print_http_response(conn, method, url, status_code=200, message_body=request)
+    elif method == "OPTIONS":
+        send_and_print_http_response(conn, method, url, status_code=200, message_body=
+        "(GET/HEAD (only at '/'), TRACE")
+    elif method == "HEAD":
+        if url == "/":
+            static_web_page = open('hello.html', 'r').read()
+
+            send_and_print_http_response(conn, method, url, status_code=200, message_body=
+            f"'HTML document' with size: {len(static_web_page)} \n last modified: Some time ago")
+        else:
+            send_and_print_http_response(conn, method, url, status_code=404, message_body="")
+    elif method == "PUT" or method == "POST" or method == "DELETE":
+        send_and_print_http_response(conn, method, url, status_code=501, message_body="")
+    else:
+        send_and_print_http_response(conn, method, url, status_code=400, message_body="")
+
+
 def handle_conn(conn, addr):
     print_with_lock(" Established connection with SERVER")
 
@@ -55,42 +89,17 @@ def handle_conn(conn, addr):
 
         method = request.split()[0]
         if method == "ping":
-            print_with_lock(" pinged server")
-            conn.send("pong".encode())
-            conn.close()
-            return
-        url = request.split()[1]
-        if not request.split()[2] == "HTTP/1.1":
-            print_with_lock(" Sent a non HTTP/1.1 request. closing socket")
-            conn.sendall("Only HTTP/1.1 supported, try again")
-            conn.close()
+            handle_ping(conn)
             return
 
-        print_with_lock(" Issued a '{method}' request to URL '{url}'")
-        if method == "GET":
-            if url == "/":
-                static_web_page = open('hello.html', 'r').read()
-
-                send_and_print_http_response(conn, method, url, status_code=200, message_body=static_web_page)
-            else:
-                send_and_print_http_response(conn, method, url, status_code=404, message_body="")
-        elif method == "TRACE":
-            send_and_print_http_response(conn, method, url, status_code=200, message_body=request)
-        elif method == "OPTIONS":
-            send_and_print_http_response(conn, method, url, status_code=200, message_body=
-            "(GET/HEAD (only at '/'), TRACE")
-        elif method == "HEAD":
-            if url == "/":
-                static_web_page = open('hello.html', 'r').read()
-
-                send_and_print_http_response(conn, method, url, status_code=200, message_body=
-                f"'HTML document' with size: {len(static_web_page)} \n last modified: Some time ago")
-            else:
-                send_and_print_http_response(conn, method, url, status_code=404, message_body="")
-        elif method == "PUT" or method == "POST" or method == "DELETE":
-            send_and_print_http_response(conn, method, url, status_code=501, message_body="")
+        if request.split()[2] == "HTTP/1.1":
+            url = request.split()[1]
+            handle_http_request(conn, method, url, request)
         else:
-            send_and_print_http_response(conn, method, url, status_code=400, message_body="")
+            print_with_lock(" Sent an invalid request. closing socket")
+            conn.sendall("Only HTTP/1.1 and 'ping' supported, try again")
+            conn.close()
+            return
 
     print_with_lock(" Timeout reached, closing connection")
     conn.close()
