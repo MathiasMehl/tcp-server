@@ -1,6 +1,7 @@
 import socket
 import sys
 import threading
+import time
 
 PRINT_LOCK = threading.Lock()
 HOST = "127.0.0.1"
@@ -20,19 +21,7 @@ def connect_server():
     return s
 
 
-def client(method, url):
-    server = connect_server()
-
-    if method in HTTP_requests:
-        HTTP_request(server, url, method)
-
-    server.close()
-
-
-def HTTP_request(server, url, method):
-    request = f"{method} {url} HTTP/1.1\r\n\r\n"
-
-    print_with_lock(f" Attempting '{method}' request to host '{HOST} on url '{url}'")
+def send_and_receive_data(server, request):
     server.sendall(request.encode("UTF-8"))
 
     data = server.recv(1024).decode("UTF-8")
@@ -40,6 +29,33 @@ def HTTP_request(server, url, method):
     http_meta = data.split("\n")[0]
 
     response_body = "\n".join(data.split("\n")[1:]).strip()
+
+    return http_meta, response_body
+
+
+def ping_server(server):
+    start_time = time.time()
+    send_and_receive_data(server, "ping")
+    return time.time() - start_time
+
+
+def client(method, url):
+    server = connect_server()
+
+    if method in HTTP_requests:
+        http_request(server, url, method)
+    elif method == "ping":
+        ping_server(server)
+
+    server.close()
+
+
+def http_request(server, url, method):
+    request = f"{method} {url} HTTP/1.1\r\n\r\n"
+
+    http_meta, response_body = send_and_receive_data(server, request)
+
+    print_with_lock(f" Attempting '{method}' request to host '{HOST} on url '{url}'")
 
     print_with_lock(f" Response from '{method}' request to '{HOST}' on '{url}' had metadata: {http_meta}")
     print_with_lock(f" Body received from '{method}' request: \n {response_body} ")
