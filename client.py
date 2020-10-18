@@ -15,10 +15,10 @@ def print_with_lock(arg):
 
 
 def connect_server():
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((HOST, PORT))
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.connect((HOST, PORT))
 
-    return s
+    return server
 
 
 def send_and_receive_data(server, request):
@@ -58,14 +58,19 @@ def http_request(server, url, method):
 
     print_with_lock(f" Attempting '{method}' request to host '{HOST} on url '{url}'")
 
+    send_and_receive_data(server, request)
+
     print_with_lock(f" Response from '{method}' request to '{HOST}' on '{url}' had metadata: {http_meta}")
     print_with_lock(f" Body received from '{method}' request: \n {response_body} ")
 
 
 if 1 < sys.argv.__len__():
-    method = sys.argv[1]
-    url = sys.argv[2]
-    number_of_clients = int(sys.argv[3])
+    number_of_clients = int(sys.argv[1])
+    method = sys.argv[2]
+    try:
+        url = sys.argv[3]
+    except IndexError:
+        url = ""
 
     for i in range(number_of_clients):
         threading.Thread(target=client, name=f"Client{i}", args=(method, url)).start()
