@@ -48,7 +48,6 @@ def handle_ping(conn):
 
 
 def handle_http_request(conn, method, url, request):
-    print_with_lock(f" Issued a '{method}' request to URL '{url}'")
     if method == "GET":
         if url == "/":
             static_web_page = open('hello.html', 'r').read()
