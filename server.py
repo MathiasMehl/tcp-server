@@ -36,12 +36,12 @@ def create_http_response(status_code, body):
     return f"HTTP/1.1 {status_code} {reason_phrase}\r\n\r\n{body}".encode("UTF-8")
 
 
-def send_and_print_response(conn, method, url, status_code, message_body):
+def send_and_print_http_response(conn, method, url, status_code, message_body):
     conn.sendall(create_http_response(status_code, message_body))
     print_response_status(method, url, status_code)
 
 
-def handle_conn(conn, addr):
+def handle_conn(conn):
     print_with_lock(f" Established connection with SERVER")
 
     last_request_timestamp = time.time()
@@ -66,26 +66,26 @@ def handle_conn(conn, addr):
             if url == "/":
                 static_web_page = open('hello.html', 'r').read()
 
-                send_and_print_response(conn, method, url, status_code=200, message_body=static_web_page)
+                send_and_print_http_response(conn, method, url, status_code=200, message_body=static_web_page)
             else:
-                send_and_print_response(conn, method, url, status_code=404, message_body="")
+                send_and_print_http_response(conn, method, url, status_code=404, message_body="")
         elif method == "TRACE":
-            send_and_print_response(conn, method, url, status_code=200, message_body=request)
+            send_and_print_http_response(conn, method, url, status_code=200, message_body=request)
         elif method == "OPTIONS":
-            send_and_print_response(conn, method, url, status_code=200, message_body=
+            send_and_print_http_response(conn, method, url, status_code=200, message_body=
             "(GET/HEAD (only at '/'), TRACE")
         elif method == "HEAD":
             if url == "/":
                 static_web_page = open('hello.html', 'r').read()
 
-                send_and_print_response(conn, method, url, status_code=200, message_body=
+                send_and_print_http_response(conn, method, url, status_code=200, message_body=
                 f"'HTML document' with size: {len(static_web_page)} \n last modified: Some time ago")
             else:
-                send_and_print_response(conn, method, url, status_code=404, message_body="")
+                send_and_print_http_response(conn, method, url, status_code=404, message_body="")
         elif method == "PUT" or method == "POST" or method == "DELETE":
-            send_and_print_response(conn, method, url, status_code=501, message_body="")
+            send_and_print_http_response(conn, method, url, status_code=501, message_body="")
         else:
-            send_and_print_response(conn, method, url, status_code=400, message_body="")
+            send_and_print_http_response(conn, method, url, status_code=400, message_body="")
 
     print_with_lock(f" Timeout reached, closing connection")
     conn.close()
