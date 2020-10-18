@@ -37,7 +37,7 @@ def ping_server(server):
     start_time = time.time()
     send_and_receive_data(server, "ping")
     elapsed_time = time.time() - start_time
-    print(f"pinged {server.getpeername()} | ping : {elapsed_time}")
+    print(f"pinged {server.getpeername()}, ping : {elapsed_time}")
 
 
 def client(method, url):
