@@ -3,13 +3,19 @@ import threading
 import http
 import time
 from apscheduler.schedulers.background import BackgroundScheduler
+from dataclasses import dataclass
+
+@dataclass
+class Request:
+    method: str
+    url: str
+    version: str
 
 HOST = '127.0.0.1'
 PORT = 8002
 TIMEOUT = 30
 PRINT_LOCK = threading.Lock()
 SCHEDULER = BackgroundScheduler()
-
 
 def print_with_lock(arg):
     with PRINT_LOCK:
@@ -47,32 +53,39 @@ def handle_ping(conn):
     conn.close()
 
 
-def handle_http_request(conn, method, url, request):
+def handle_http_request(conn, request):
     if method == "GET":
         if url == "/":
             static_web_page = open('hello.html', 'r').read()
 
-            send_and_print_http_response(conn, method, url, status_code=200, message_body=static_web_page)
+            send_and_print_http_response(conn, request.method, request.url, status_code=200, message_body=static_web_page)
         else:
-            send_and_print_http_response(conn, method, url, status_code=404, message_body="")
+            send_and_print_http_response(conn, request.method, request.url, status_code=404, message_body="")
     elif method == "TRACE":
-        send_and_print_http_response(conn, method, url, status_code=200, message_body=request)
+        send_and_print_http_response(conn, request.method, request.url, status_code=200, message_body=request.url)
     elif method == "OPTIONS":
-        send_and_print_http_response(conn, method, url, status_code=200, message_body=
+        send_and_print_http_response(conn, request.method, request.url, status_code=200, message_body=
         "(GET/HEAD (only at '/'), TRACE")
     elif method == "HEAD":
         if url == "/":
             static_web_page = open('hello.html', 'r').read()
 
-            send_and_print_http_response(conn, method, url, status_code=200, message_body=
+            send_and_print_http_response(conn, request.method, request.url, status_code=200, message_body=
             f"'HTML document' with size: {len(static_web_page)} \n last modified: Some time ago")
         else:
-            send_and_print_http_response(conn, method, url, status_code=404, message_body="")
+            send_and_print_http_response(conn, request.method, request.url, status_code=404, message_body="")
     elif method == "PUT" or method == "POST" or method == "DELETE":
-        send_and_print_http_response(conn, method, url, status_code=501, message_body="")
+        send_and_print_http_response(conn, request.method, request.url, status_code=501, message_body="")
     else:
-        send_and_print_http_response(conn, method, url, status_code=400, message_body="")
+        send_and_print_http_response(conn, request.method, request.url, status_code=400, message_body="")
 
+def parseRequest(request):
+    splits = request.split()
+    method = splits[0]
+    url = splits[1]
+    version = splits[2]
+
+    return Request(method, url, version)
 
 def handle_conn(conn, addr):
     print_with_lock(" Established connection with SERVER")
@@ -86,14 +99,14 @@ def handle_conn(conn, addr):
             continue
         last_request_timestamp = time.time()
 
-        method = request.split()[0]
-        if method == "ping":
+        parsedRequest = parseRequest(request)
+
+        if parsedRequest.method == "ping":
             handle_ping(conn)
             return
 
-        if request.split()[2] == "HTTP/1.1":
-            url = request.split()[1]
-            handle_http_request(conn, method, url, request)
+        if parsedRequest.version == "HTTP/1.1":
+            handle_http_request(conn, parsedRequest)
         else:
             print_with_lock(" Sent an invalid request. closing socket")
             conn.sendall("Only HTTP/1.1 and 'ping' supported, try again")
